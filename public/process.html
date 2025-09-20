@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Process — PS Club</title>
+    <link rel="stylesheet" href="/shared.css" />
+</head>
+
+<body>
+    <div class="container">
+        <h2>Faol Zakazlar (Process)</h2>
+        <div id="listWrap" class="card">
+            <div id="processList">Yuklanmoqda...</div>
+        </div>
+    </div>
+
+    <!-- Modal for edit -->
+    <div id="editModal"
+        style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1000;background:rgba(0,0,0,0.3);align-items:center;justify-content:center;">
+        <div style="background:#2e1f61;padding:24px;border-radius:8px;min-width:260px;max-width:90vw;">
+            <h3>Zakazni o‘zgartirish</h3>
+            <div>
+                <label>PS nomeri:</label>
+                <select id="editPs" style="width:100%"></select>
+            </div>
+            <div style="margin-top:8px">
+                <label>Summa (so'm):</label>
+                <input id="editSum" type="number" style="width:100%" />
+            </div>
+            <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
+                <button id="editCancel" class="btn">Bekor qilish</button>
+                <button id="editSave" class="btn success">Saqlash</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!requireAuth()) return;
+            buildNav();
+
+            // PS nomerlari ro‘yxati (dashboarddagi kabi)
+            const psOptions = ["PS1", "PS2", "PS3", "PS4", "PS5"];
+            const editPsSelect = document.getElementById("editPs");
+            psOptions.forEach(ps => {
+                const opt = document.createElement("option");
+                opt.value = ps;
+                opt.textContent = ps;
+                editPsSelect.appendChild(opt);
+            });
+
+            let editingId = null;
+
+            function formatLeft(o) {
+                if (o.type === "cash") {
+                    if (!o.endTime) return "—";
+                    const leftMs = new Date(o.endTime) - new Date();
+                    if (leftMs <= 0) return "Vaqt tugadi";
+                    const h = Math.floor(leftMs / 3600000);
+                    const m = Math.floor((leftMs % 3600000) / 60000);
+                    const s = Math.floor((leftMs % 60000) / 1000);
+                    return `${h}h ${m}m ${s}s left`;
+                } else {
+                    const elapsed = new Date() - new Date(o.startTime);
+                    const h = Math.floor(elapsed / 3600000);
+                    const m = Math.floor((elapsed % 3600000) / 60000);
+                    const s = Math.floor((elapsed % 60000) / 1000);
+                    return `VIP: ${h}h ${m}m ${s}s`;
+                }
+            }
+
+            async function loadProcess() {
+                try {
+                    const orders = await fetch("/api/orders", { headers: authHeaders() }).then(r => r.json());
+                    let list = orders.filter(o => o.status === "process");
+                    list = list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                    const wrap = document.getElementById("processList"); wrap.innerHTML = "";
+                    if (!list.length) return wrap.innerText = "Faol zakaz yo'q";
+
+                    // Avtomatik yakunlash: cash va endTime o'tganlarni completed ga o'tkazamiz
+                    for (const o of list) {
+                        if (o.type === "cash" && o.endTime && new Date(o.endTime) <= new Date()) {
+                            const res = await fetch(`/api/complete/${o._id}`, { method: "POST", headers: authHeaders() });
+                            const j = await res.json();
+                            if (j.ok) {
+                                await modalAlert(`PS: <b>${o.ps}</b> vaqti tugadi!<br><b>Summa:</b> ${j.order.summa} so'm`, "Vaqt tugadi");
+                            }
+                        }
+                    }
+
+                    // Qayta yuklab, faqat hali process bo'lganlarni ko'rsatamiz
+                    list = orders.filter(o => o.status === "process" && !(o.type === "cash" && o.endTime && new Date(o.endTime) <= new Date()));
+                    if (!list.length) return wrap.innerText = "Faol zakaz yo'q";
+                    list.forEach(o => {
+                        const div = document.createElement("div");
+                        div.className = "card ps-bg-" + o.ps; // <-- PS nomeriga qarab rangli fon
+
+                        // Tugash vaqti (faqat cash uchun va endTime mavjud bo‘lsa)
+                        let endTimeHtml = "";
+                        if (o.type === "cash" && o.endTime) {
+                            endTimeHtml = `<div class="small" style="color:#888">Tugash: ${new Date(o.endTime).toLocaleTimeString()}</div>`;
+                        }
+
+                        div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
+  <div>
+    <strong>${o.ps}</strong>
+    <div class="small">ID:${o.orderId ?? o.externalId}</div>
+    <div class="small" style="color:#aaa">Ochilgan: ${new Date(o.createdAt).toLocaleString()}</div>
+    ${endTimeHtml}
+  </div>
+  <div class="small">${formatLeft(o)}</div>
+</div>
+<div class="small">Summa: ${Number(o.summa).toLocaleString()} so'm | Turi: ${o.type.toUpperCase()}</div>
+<div style="margin-top:8px">
+  <button onclick="completeOrder('${o._id}')" class="btn success">✅ Yakunla</button>
+  <button onclick="promptEdit('${o._id}', '${o.ps}', ${o.summa})" class="btn">✏️ Edit</button>
+  <button onclick="deleteOrder('${o._id}')" class="btn danger">🗑 Delete</button>
+</div>`;
+                        wrap.appendChild(div);
+                    });
+                } catch (e) { console.error(e); }
+            }
+
+            window.completeOrder = async (id) => {
+                const confirm = await modalConfirm("Zakazni yakunlaysizmi?");
+                if (!confirm) return;
+                const j = await fetch("/api/complete/" + id, { method: "POST", headers: authHeaders() }).then(r => r.json());
+                if (j.ok) {
+                    await modalAlert(`Zakaz yopildi!<br><b>Summa:</b> ${j.order.summa} so'm`, "Zakaz yakunlandi");
+                    loadProcess();
+                } else {
+                    await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
+                }
+            };
+
+            // Modal edit
+            window.promptEdit = (id, ps, sum) => {
+                editingId = id;
+                editPsSelect.value = ps;
+                document.getElementById("editSum").value = sum;
+                document.getElementById("editModal").style.display = "flex";
+            };
+
+            document.getElementById("editCancel").onclick = () => {
+                document.getElementById("editModal").style.display = "none";
+                editingId = null;
+            };
+
+            document.getElementById("editSave").onclick = async () => {
+                const newPs = editPsSelect.value;
+                const newSum = Number(document.getElementById("editSum").value);
+                if (!newPs) return alert("PS nomeri bo‘sh bo‘lishi mumkin emas");
+                if (isNaN(newSum) || newSum < 0) return alert("Summa noto‘g‘ri");
+                const j = await fetch("/api/order/" + editingId, {
+                    method: "PUT",
+                    headers: authHeaders(),
+                    body: JSON.stringify({ ps: newPs, amount: newSum })
+                }).then(r => r.json());
+                if (j.ok) {
+                    document.getElementById("editModal").style.display = "none";
+                    editingId = null;
+                    loadProcess();
+                } else {
+                    alert("Xato: " + (j.error || JSON.stringify(j)));
+                }
+            };
+
+            window.deleteOrder = async (id, summa = 0) => {
+                const confirm = await modalConfirm(
+                    `Rostan ham ushbu zakazni o‘chirmoqchimisiz?<br><b>Summa:</b> ${summa} so'm`,
+                    "Zakazni o‘chirish"
+                );
+                if (!confirm) return;
+                const j = await fetch("/api/order/" + id, { method: "DELETE", headers: authHeaders() }).then(r => r.json());
+                if (j.ok) {
+                    await modalAlert("Zakaz trash-ga o‘tkazildi!");
+                    loadProcess();
+                } else {
+                    await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
+                }
+            };
+
+            loadProcess();
+            setInterval(loadProcess, 3000);
+        });
+    </script>
+</body>
+
+</html>

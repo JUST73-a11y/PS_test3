@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Completed — PS Club</title>
+    <link rel="stylesheet" href="/shared.css" />
+</head>
+
+<body>
+    <script src="/app.js"></script>
+    <div class="container">
+        <script> requireAuth(); buildNav(); </script>
+        <h2>Tugallangan Zakazlar</h2>
+        <div class="card">
+            <input id="search" placeholder="PS yoki ID bo'yicha qidirish"
+                style="width:100%;padding:8px;border-radius:6px" />
+            <ul id="completedList" class="list"></ul>
+        </div>
+    </div>
+
+    <script>
+        // agar app.js ichida authHeaders yoki requireAuth bo'lmasa — fallback:
+        if (typeof authHeaders !== "function") {
+            window.authHeaders = function () {
+                const token = localStorage.getItem("token") || localStorage.getItem("ps_token");
+                return { "Authorization": "Bearer " + (token || "") };
+            }
+        }
+
+        async function loadCompleted() {
+            const res = await fetch("/api/completed", { headers: authHeaders() });
+            // agar server array qaytarsa — to'g'ridan to'g'ri ishlaydi
+            const data = await res.json();
+            render(data);
+        }
+
+        async function deleteOrder(id) {
+            if (!(await modalConfirm("Bu zakasni trashga o‘tkazilsinmi?"))) return;
+            const endpoints = [
+                `/api/order/${id}`,
+                `/api/completed/${id}`
+            ];
+
+            let ok = false;
+            for (const url of endpoints) {
+                try {
+                    const res = await fetch(url, {
+                        method: "DELETE",
+                        headers: authHeaders()
+                    });
+                    const body = await res.json();
+                    if (body && body.ok) { ok = true; break; }
+                } catch (err) { }
+            }
+
+            if (ok) {
+                await modalAlert("Zakas trash-ga o‘tkazildi ✅");
+                loadCompleted();
+            } else {
+                await modalAlert("Xato: serverga so‘rov yuborilmadi yoki yo‘l topilmadi");
+            }
+        }
+
+        function render(data) {
+            const q = document.getElementById("search").value.toLowerCase();
+            const el = document.getElementById("completedList"); el.innerHTML = "";
+            // data may be array or {ok:..., orders: [...]}
+            const list = Array.isArray(data) ? data : (data.orders || []);
+            list.filter(o => {
+                if (!q) return true;
+                return (o.ps && o.ps.toLowerCase().includes(q)) || (o.orderId && o.orderId.toString().includes(q)) || (o.externalId && o.externalId.toLowerCase().includes(q));
+            }).forEach(o => {
+                const li = document.createElement("li");
+                li.innerHTML = `
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap">
+                      <div>
+                        <strong>${o.ps}</strong>
+                        <div class="small">ID:${o.orderId || o.externalId || '-'}</div>
+                        <div class="small" style="color:#aaa">${new Date(o.startTime).toLocaleString()} - ${o.endTime ? new Date(o.endTime).toLocaleString() : '-'}</div>
+                      </div>
+                      <div>
+                        <span class="small">${Number(o.summa).toLocaleString()} so'm</span>
+                        <button onclick="deleteOrder('${o._id}')" class="btn danger">🗑 Delete</button>
+                      </div>
+                    </div>
+                `;
+                el.appendChild(li);
+            });
+        }
+
+        document.getElementById("search").oninput = loadCompleted;
+        loadCompleted();
+    </script>
+</body>
+
+</html>

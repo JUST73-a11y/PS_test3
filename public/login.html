@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Login — PS Club</title>
+    <link rel="stylesheet" href="/shared.css" />
+</head>
+
+<body>
+    <div class="container">
+        <h2>Admin Kirish</h2>
+        <div class="card">
+            <div class="small">Username</div>
+            <input id="username" style="width:100%" value="admin" />
+            <div class="small">Password</div>
+            <input id="password" style="width:100%" value="12345" />
+            <div style="margin-top:8px">
+                <button id="loginBtn" class="btn btn-primary">Kirish</button>
+            </div>
+            <div class="small" style="margin-top:8px">Agar login ishlamasa, .env dagi ADMIN_USER/ADMIN_PASS ni
+                tekshiring.</div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+    <script>
+        document.getElementById("loginBtn").addEventListener("click", async () => {
+            const u = document.getElementById("username").value;
+            const p = document.getElementById("password").value;
+            try {
+                const res = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: u, password: p }) });
+                const j = await res.json();
+                if (j.ok && j.token) {
+                    localStorage.setItem("ps_token", j.token);
+                    window.location.href = "/dashboard.html";
+                } else {
+                    alert("Login xato: " + (j.error || JSON.stringify(j)));
+                }
+            } catch (e) { console.error(e); alert("Serverga ulanishda xatolik"); }
+        });
+    </script>
+</body>
+
+</html>
