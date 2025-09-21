@@ -129,6 +129,20 @@ async function sendToTelegram(text) {
 
 }
 
+// Telegram helper (chunked)
+async function sendToTelegramChunks(lines, title = "") {
+    const MAX = 4000;
+    let chunk = title ? `<b>${title}</b>\n` : "";
+    for (const line of lines) {
+        if ((chunk + line + "\n").length > MAX) {
+            await sendToTelegram(chunk);
+            chunk = "";
+        }
+        chunk += line + "\n";
+    }
+    if (chunk.trim()) await sendToTelegram(chunk);
+}
+
 // Auth middlewares
 function authMiddleware(req, res, next) {
     const auth = req.headers.authorization || "";
@@ -454,13 +468,18 @@ api.post("/daily-report", authMiddleware, async (req, res) => {
 
         const totalSum = orders.reduce((sum, o) => sum + (o.summa || 0), 0);
 
-        let text = `<b>📊 Kunlik Hisobot</b> \n 📅${start.toLocaleDateString()}:\n \n`;
-        orders.forEach((o, i) => {
-            text += `<u><b>${i + 1}) ${o.ps} | </b></u> ${o.type}${o._calculated ? " (VIP ochiq)" : ""}| ${o.summa.toLocaleString()} so'm | ${o.startTime ? new Date(o.startTime).toLocaleTimeString() : "-"} - ${o.endTime ? new Date(o.endTime).toLocaleTimeString() : "-"}\n\n`;
-        });
-        text += `\n<b>Jami:</b> ${orders.length} ta zakaz, ${totalSum.toLocaleString()} so'm`;
-
-        await sendToTelegram(text);
+        // Xabarlarni bo‘lib-bo‘lib yuborish
+        const lines = orders.map((o, i) =>
+            `<u><b>${i + 1}) ${o.ps} | </b></u> ${o.type}${o._calculated ? " (VIP ochiq)" : ""}| ${o.summa.toLocaleString()} so'm | ${o.startTime ? new Date(o.startTime).toLocaleTimeString() : "-"} - ${o.endTime ? new Date(o.endTime).toLocaleTimeString() : "-"}`
+        );
+        if (orders.length > 0) {
+            await sendToTelegramChunks(
+                lines,
+                `📊 Kunlik Hisobot\n📅${start.toLocaleDateString()}:\n`
+            );
+        } else {
+            await sendToTelegram("📊 Kunlik hisobot: Hech qanday zakaz yo‘q edi.");
+        }
 
         return res.json({ ok: true, count: orders.length, totalSum });
     } catch (e) {
@@ -479,6 +498,17 @@ api.get("/trash", authMiddleware, superMiddleware, async (req, res) => {
         return res.status(500).json({ ok: false, error: e.message });
     }
 });
+
+// Arxiv schema
+const archiveSchema = new mongoose.Schema({
+    date: { type: String, required: true }, // "YYYY-MM-DD"
+    orders: { type: Array, default: [] },
+    totalSum: { type: Number, default: 0 },
+    createdAt: { type: Date, default: Date.now }
+}, { versionKey: false });
+
+const Archive = mongoose.model("Archive", archiveSchema);
+
 // mount api
 app.use("/api", api);
 
@@ -521,3 +551,143 @@ setInterval(async () => {
         console.error("Auto-complete error:", e);
     }
 }, 60 * 1000); // har 1 daqiqada
+
+// DB tozalash (zakazlar va arxiv ham tozalanadi, backup Telegramga yuboriladi)
+api.post("/clear", authMiddleware, superMiddleware, async (req, res) => {
+    try {
+        // 1. Zakazlar backup
+        const orders = await Order.find();
+        const totalSum = orders.reduce((sum, o) => sum + (o.summa || 0), 0);
+        const orderLines = orders.map((o, i) =>
+            `${i + 1}) PS: ${o.ps} | ${o.type.toUpperCase()} | ${o.summa?.toLocaleString()} so'm | ${o.startTime ? new Date(o.startTime).toLocaleString() : "-"}`
+        );
+        if (orders.length > 0) {
+            await sendToTelegramChunks(orderLines, `🧹 DB Tozalash Backup\nJami: ${orders.length} ta zakaz, ${totalSum.toLocaleString()} so'm\n`);
+        } else {
+            await sendToTelegram("🧹 DB tozalandi. Hech qanday zakaz yo‘q edi.");
+        }
+
+        // 2. Arxiv backup
+        const archives = await Archive.find();
+        const archiveLines = [];
+        archives.forEach(a => {
+            archiveLines.push(`📦 ${a.date} — ${a.orders.length} ta zakaz, ${a.totalSum.toLocaleString()} so'm`);
+            a.orders.forEach((o, i) => {
+                archiveLines.push(
+                    `  ${i + 1}) PS: ${o.ps} | ${o.type} | ${o.summa?.toLocaleString()} so'm | ${o.startTime ? new Date(o.startTime).toLocaleString() : "-"}`
+                );
+            });
+        });
+        if (archives.length > 0) {
+            await sendToTelegramChunks(archiveLines, "📦 Arxiv Backup");
+        } else {
+            await sendToTelegram("📦 Arxiv ham bo‘sh edi.");
+        }
+
+        // 3. Barcha zakazlarni va arxivni o‘chirish
+        const orderResult = await Order.deleteMany({});
+        const archiveResult = await Archive.deleteMany({});
+
+        return res.json({
+            ok: true,
+            totalCount: orderResult.deletedCount,
+            totalSum,
+            archiveCount: archiveResult.deletedCount
+        });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
+// Kunlik hisobni boshlash (stats-ni 0 ga tenglash, backup Telegramga yuboriladi)
+api.post("/daily-reset", authMiddleware, superMiddleware, async (req, res) => {
+    try {
+        // 1. Process va completed zakazlarni topamiz
+        const orders = await Order.find({ status: { $in: ["process", "completed"] } });
+        const totalSum = orders.reduce((sum, o) => sum + (o.summa || 0), 0);
+
+        // 2. Telegram backup (4096 belgidan oshsa bo‘lib yuboriladi)
+        let text = `<b>🔄 Kunlik Hisobni Boshlash Backup</b>\nJami: ${orders.length} ta zakaz, ${totalSum.toLocaleString()} so'm\n\n`;
+        const lines = orders.map((o, i) =>
+            `${i + 1}) PS: ${o.ps} | ${o.type.toUpperCase()} | ${o.summa.toLocaleString()} so'm | ${o.startTime ? new Date(o.startTime).toLocaleString() : "-"}`
+        );
+        let chunk = text;
+        for (const line of lines) {
+            if ((chunk + line + "\n").length > 4000) {
+                await sendToTelegram(chunk);
+                chunk = "";
+            }
+            chunk += line + "\n";
+        }
+        if (chunk.trim()) {
+            await sendToTelegram(chunk);
+        }
+        if (!orders.length) {
+            await sendToTelegram("🔄 Kunlik hisob boshlandi. Hech qanday zakaz yo‘q edi.");
+        }
+
+        // 3. Barcha process va completed zakazlarni trash holatiga o‘tkazamiz
+        const updated = await Order.updateMany(
+            { status: { $in: ["process", "completed"] } },
+            { $set: { status: "trash", deletedAt: new Date() } }
+        );
+
+        return res.json({ ok: true, updated: updated.modifiedCount });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
+// Kunlik hisobni arxivga o‘tkazish (super admin)
+api.post("/archive-day", authMiddleware, superMiddleware, async (req, res) => {
+    try {
+        // 1. Bugungi barcha process/completed zakazlarni topamiz
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+
+        const orders = await Order.find({
+            createdAt: { $gte: start, $lte: end },
+            status: { $in: ["process", "completed"] }
+        }).lean();
+
+        if (!orders.length) {
+            return res.json({ ok: false, error: "Arxivga o‘tkaziladigan zakaz yo‘q" });
+        }
+
+        const totalSum = orders.reduce((sum, o) => sum + (o.summa || 0), 0);
+
+        // 2. Arxivga yozamiz
+        const dateStr = start.toISOString().slice(0, 10); // YYYY-MM-DD
+        await Archive.create({
+            date: dateStr,
+            orders,
+            totalSum
+        });
+
+        // 3. Zakazlarni trash holatiga o‘tkazamiz
+        await Order.updateMany(
+            { _id: { $in: orders.map(o => o._id) } },
+            { $set: { status: "trash", deletedAt: new Date() } }
+        );
+
+        return res.json({ ok: true, archived: orders.length, totalSum });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ ok: false, error: e.message });
+    }
+});
+
+// Arxiv ro‘yxati
+api.get("/archive", authMiddleware, superMiddleware, async (req, res) => {
+    try {
+        const list = await Archive.find().sort({ date: -1 }).lean();
+        return res.json({ ok: true, archive: list });
+    } catch (e) {
+        console.error(e);
+        return res.status(500).json({ ok: false, error: e.message });
+    }
+});

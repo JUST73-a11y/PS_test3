@@ -9,7 +9,7 @@
 
 <body>
     <div class="container">
-        <h2>Dashboard</h2>
+        <h2 style="font-size: 40px;">Dashboard</h2>
         <div class="dashboard-form">
             <div>
                 <h3>Zakaz qo'shish</h3>
@@ -27,9 +27,10 @@
                     <option value="vip">VIP</option>
                 </select>
                 <div class="small">Summa (naqd uchun)</div>
-                <input id="amount" type="number" placeholder="15,000" />
+                <input id="amount" type="number" placeholder="15,000" style="padding: 15px;" />
                 <div style="margin-top:8px">
-                    <button id="addBtn" class="btn btn-primary">Qo'shish</button>
+                    <button id="addBtn" class="btn btn-primary"
+                        style="    font-size: 35px; border: 1px solid #9b5cff;">Qo'shish</button>
                 </div>
             </div>
             <div>
@@ -39,7 +40,7 @@
         </div>
 
         <div class="card">
-            <h3>Oxirgi zakazlar</h3>
+            <h3 style="font-size: 2em;">Oxirgi zakazlar</h3>
             <ul id="recentList" class="list"></ul>
         </div>
     </div>
@@ -63,7 +64,7 @@
                     const el = document.getElementById("recentList"); el.innerHTML = "";
                     recent.forEach(o => {
                         const li = document.createElement("li");
-                        li.innerHTML = `${o.ps} | ${o.type} | ${Number(o.summa).toLocaleString()} so'm | ${new Date(o.createdAt).toLocaleString()} <span class="small">ID:${o.orderId ?? o.externalId}</span>`;
+                        li.innerHTML = `${o.ps} | ${o.type} | ${Number(o.summa).toLocaleString()} so'm | ${new Date(o.createdAt).toLocaleString()} | <span style="color: ${o.status === "completed" ? "#43d97a" : "#ff5c5c"};">${o.status.toUpperCase()}</span>`;
                         el.appendChild(li);
                     });
                 } catch (e) {

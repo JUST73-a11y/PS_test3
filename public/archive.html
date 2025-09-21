@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="uz">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Arxiv — PS Club</title>
+    <link rel="stylesheet" href="/shared.css" />
+</head>
+
+<body>
+    <script src="/app.js"></script>
+    <div class="container">
+        <h2>Arxiv</h2>
+        <div id="archiveList"></div>
+    </div>
+    <script>
+        requireAuth();
+        buildNav();
+
+        (async () => {
+            // Super admin keyni so‘rash
+            let superKey = localStorage.getItem("ps_super_key") || "";
+            if (!superKey) {
+                superKey = await modalPrompt("Arxivni ko‘rish uchun super admin keyni kiriting:", "Super admin");
+                if (!superKey) {
+                    document.getElementById("archiveList").innerText = "Super admin key kerak!";
+                    return;
+                }
+                localStorage.setItem("ps_super_key", superKey);
+            }
+
+            fetch("/api/archive", { headers: { ...authHeaders({ "super-key": superKey }) } })
+                .then(r => r.json())
+                .then(j => {
+                    if (!j.ok) {
+                        if (j.error && j.error.toLowerCase().includes("super admin")) {
+                            localStorage.removeItem("ps_super_key");
+                            document.getElementById("archiveList").innerText = "Super admin key noto‘g‘ri!";
+                        } else {
+                            document.getElementById("archiveList").innerText = "Xatolik: " + (j.error || "Arxiv yo‘q");
+                        }
+                        return;
+                    }
+                    const html = j.archive.map(a => `
+                    <div class="card" style="margin-bottom:18px ; font-size: 30px;">
+                        <b>${a.date}</b> — ${a.orders.length} ta zakaz, ${a.totalSum.toLocaleString()} so'm
+                        <details>
+                            <summary>Zakazlar ro‘yxati</summary>
+                            <ul>
+                            ${a.orders.map(o => `<li>PS: ${o.ps} | ${o.type} | ${o.summa.toLocaleString()} so'm | ${o.startTime ? new Date(o.startTime).toLocaleString() : "-"}</li>`).join("")}
+                            </ul>
+                        </details>
+                    </div>
+                `).join("");
+                    document.getElementById("archiveList").innerHTML = html || "Arxiv bo‘sh";
+                });
+        })();
+    </script>
+</body>
+
+</html>

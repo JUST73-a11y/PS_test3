@@ -105,18 +105,18 @@
 
                         div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
   <div>
-    <strong>${o.ps}</strong>
-    <div class="small">ID:${o.orderId ?? o.externalId}</div>
-    <div class="small" style="color:#aaa">Ochilgan: ${new Date(o.createdAt).toLocaleString()}</div>
+    <strong style=" font-size: 35px;">${o.ps}</strong>
+    <div class="small" style=" font-size: 25px;">ID:${o.orderId ?? o.externalId}</div>
+    <div class="small" ><spam style="color:#4cd500">Ochilgan:</spam> ${new Date(o.createdAt).toLocaleString()}</div>
     ${endTimeHtml}
   </div>
   <div class="small">${formatLeft(o)}</div>
 </div>
 <div class="small">Summa: ${Number(o.summa).toLocaleString()} so'm | Turi: ${o.type.toUpperCase()}</div>
 <div style="margin-top:8px">
-  <button onclick="completeOrder('${o._id}')" class="btn success">✅ Yakunla</button>
-  <button onclick="promptEdit('${o._id}', '${o.ps}', ${o.summa})" class="btn">✏️ Edit</button>
-  <button onclick="deleteOrder('${o._id}')" class="btn danger">🗑 Delete</button>
+  <button onclick="completeOrder('${o._id}')" class="btn success large" style=" font-size: 25px;">✅ Yakunla</button>
+  <button onclick="promptEdit('${o._id}', '${o.ps}', ${o.summa})" class="btn" style=" font-size: 25px; border: 1px solid #9b5cff;" >✏️ Edit</button>
+  <button onclick="deleteOrder('${o._id}')" class="btn danger" style=" font-size: 25px;" >🗑 Delete</button>
 </div>`;
                         wrap.appendChild(div);
                     });
@@ -151,8 +151,8 @@
             document.getElementById("editSave").onclick = async () => {
                 const newPs = editPsSelect.value;
                 const newSum = Number(document.getElementById("editSum").value);
-                if (!newPs) return alert("PS nomeri bo‘sh bo‘lishi mumkin emas");
-                if (isNaN(newSum) || newSum < 0) return alert("Summa noto‘g‘ri");
+                if (!newPs) return modalAlert("PS nomeri bo‘sh bo‘lishi mumkin emas");
+                if (isNaN(newSum) || newSum < 0) return modalAlert("Summa noto‘g‘ri");
                 const j = await fetch("/api/order/" + editingId, {
                     method: "PUT",
                     headers: authHeaders(),
@@ -163,7 +163,7 @@
                     editingId = null;
                     loadProcess();
                 } else {
-                    alert("Xato: " + (j.error || JSON.stringify(j)));
+                    await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
                 }
             };
 

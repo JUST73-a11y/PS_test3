@@ -42,17 +42,23 @@ function buildNav() {
     const nav = document.createElement("nav");
     nav.id = "ps-nav";
     nav.innerHTML = `
-    <div style="display:flex;align-items:center;gap:18px;">
-      <span class="psclub-logo">🎮 <b>PS Club</b></span>
-      <a href="/dashboard.html">📝Zakas Qoshish</a>
-      <a href="/process.html">🔄 Jarayonda</a>
-      <a href="/completed.html">✅ Yakunlangan</a>
-      <a href="/trash.html">🗑️ Trash</a>
+      <span class="psclub-logo" style="    margin: 0 auto;
+    width: 80%;
+    display: flex;
+    justify-content: center;">🎮 <b>PS Club</b></span>
+
+    <div style="display: flex; align-items: center; gap: 30px; font-size: 20px; margin-top: 40px;">
+      <a href="/dashboard.html" class="btn">Zakas Qoshish</a>
+      <a href="/process.html" class="btn">Jarayonda</a>
+      <a href="/completed.html" class="btn">Yakunlangan</a>
+      <a href="/trash.html" class="btn">Trash</a>
+      <a href="/archive.html" class="btn">Arxiv</a>
     </div>
     <div>
-      <button id="dailyBtn" class="btn btn-primary">📊 Kunlik Hisob</button>
-      <button id="clearBtn" class="btn danger">🧹 DB Tozalash</button>
-      <button id="logoutBtn" class="btn">Logout</button>
+      <button id="dailyBtn" class="btn btn-primary btn_size">📊 Kunlik Hisob</button>
+      <button id="archiveBtn" class="btn btn-warning btn_size"> Hsobni yanglash!</button>
+      <button id="clearBtn" class="btn danger btn_size">🧹 DB Tozalash</button>
+      <button id="logoutBtn" class="btn btn_size" style="    margin-top: 7px;">Logout</button>
     </div>
   `;
     document.body.prepend(nav);
@@ -71,37 +77,50 @@ function buildNav() {
     document.getElementById("dailyBtn").onclick = async () => {
         if (!(await modalConfirm("Kunlik hisob Telegramga yuborilsinmi?", "Kunlik Hisob"))) return;
         try {
-            const j = await fetchJson(API_ROOT + "/daily-report", { method: "POST", headers: authHeaders() });
+            const j = await fetchJson("/api/daily-report", { method: "POST", headers: authHeaders() });
             if (j.ok) await modalAlert("Kunlik hisobot Telegramga yuborildi", "Kunlik Hisob");
             else await modalAlert("Xato: " + (j.error || JSON.stringify(j)), "Kunlik Hisob");
         } catch (e) { console.error(e); }
     };
 
-    // Fix: Attach clearBtn handler immediately after nav is built
-    const clearBtn = document.getElementById("clearBtn");
-    if (clearBtn) {
-        clearBtn.onclick = async () => {
-            if (!(await modalConfirm("Barcha zakazlarni o‘chirishni istaysizmi?", "DB tozalash"))) return;
-            const superKey = await modalPrompt("Super admin keyni kiriting:", "Super admin");
-            if (!superKey) {
-                await modalAlert("Key kerak", "Super admin");
-                return;
-            }
-            const res = await fetch("/api/clear", { method: "POST", headers: authHeaders({ "super-key": superKey }) });
-            const j = await res.json();
-            if (j.ok) {
-                await modalAlert(
-                    `Barcha zakazlar o‘chirildi!<br>
-                    <b>Umumiy zakazlar:</b> ${j.totalCount}<br>
-                    <b>Umumiy tushum:</b> ${j.totalSum} so'm`,
-                    "DB tozalash"
-                );
-                location.reload();
-            } else {
-                await modalAlert("Xato: " + (j.error || JSON.stringify(j)), "DB tozalash");
-            }
-        };
-    }
+    document.getElementById("clearBtn").onclick = async () => {
+        if (!(await modalConfirm("Barcha zakazlarni o‘chirishni istaysizmi?", "DB tozalash"))) return;
+        const superKey = await modalPrompt("Super admin keyni kiriting:", "Super admin");
+        if (!superKey) {
+            await modalAlert("Key kerak", "Super admin");
+            return;
+        }
+        const res = await fetch("/api/clear", { method: "POST", headers: authHeaders({ "super-key": superKey }) });
+        const j = await res.json();
+        if (j.ok) {
+            await modalAlert(
+                `Barcha zakazlar o‘chirildi!<br>
+                <b>Umumiy zakazlar:</b> ${j.totalCount}<br>
+                <b>Umumiy tushum:</b> ${j.totalSum} so'm`,
+                "DB tozalash"
+            );
+            location.reload();
+        } else {
+            await modalAlert("Xato: " + (j.error || JSON.stringify(j)), "DB tozalash");
+        }
+    };
+
+    document.getElementById("archiveBtn").onclick = async () => {
+        if (!(await modalConfirm("Kunlik hisobni arxivga o‘tkazishni tasdiqlaysizmi? Oldingi kun zakazlari arxivga o‘tadi.", "Kunlik hisobni arxivlash"))) return;
+        const superKey = await modalPrompt("Super admin keyni kiriting:", "Super admin");
+        if (!superKey) {
+            await modalAlert("Key kerak", "Super admin");
+            return;
+        }
+        const res = await fetch("/api/archive-day", { method: "POST", headers: authHeaders({ "super-key": superKey }) });
+        const j = await res.json();
+        if (j.ok) {
+            await modalAlert("Kunlik hisob arxivga o‘tkazildi!");
+            if (typeof loadStats === "function") loadStats();
+        } else {
+            await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
+        }
+    };
 }
 
 // Modal helpers
@@ -114,8 +133,8 @@ function showModal({ title = "", html = "", ok = "OK", cancel = null, input = fa
             modal.innerHTML = `
                 <div class="ps-modal-bg"></div>
                 <div class="ps-modal-card">
-                    <div class="ps-modal-title"></div>
-                    <div class="ps-modal-body"></div>
+                    <div class="ps-modal-title" style="font-size: 3em; font-weight: bold;"></div>
+                    <div class="ps-modal-body " style="font-size: 3em;"></div>
                     <div class="ps-modal-actions"></div>
                 </div>
             `;
@@ -166,3 +185,27 @@ window.completeOrder = async (id) => {
         await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
     }
 };
+
+document.addEventListener("DOMContentLoaded", () => {
+    buildNav();
+
+    const archiveBtn = document.getElementById("archiveBtn");
+    if (archiveBtn) {
+        archiveBtn.onclick = async () => {
+            if (!(await modalConfirm("Kunlik hisobni arxivga o‘tkazishni tasdiqlaysizmi? Oldingi kun zakazlari arxivga o‘tadi.", "Kunlik hisobni arxivlash"))) return;
+            const superKey = await modalPrompt("Super admin keyni kiriting:", "Super admin");
+            if (!superKey) {
+                await modalAlert("Key kerak", "Super admin");
+                return;
+            }
+            const res = await fetch("/api/archive-day", { method: "POST", headers: authHeaders({ "super-key": superKey }) });
+            const j = await res.json();
+            if (j.ok) {
+                await modalAlert("Kunlik hisob arxivga o‘tkazildi!");
+                if (typeof loadStats === "function") loadStats();
+            } else {
+                await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
+            }
+        };
+    }
+});
