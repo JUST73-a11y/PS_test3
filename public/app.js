@@ -47,14 +47,14 @@ function buildNav() {
     display: flex;
     justify-content: center;">🎮 <b>PS Club</b></span>
 
-    <div style="display: flex; align-items: center; gap: 30px; font-size: 20px; margin-top: 40px;">
+    <div style="display: flex; align-items: center; gap: 30px; font-size: 25px; margin-top: 40px;">
       <a href="/dashboard.html" class="btn">Zakas Qoshish</a>
       <a href="/process.html" class="btn">Jarayonda</a>
       <a href="/completed.html" class="btn">Yakunlangan</a>
       <a href="/trash.html" class="btn">Trash</a>
       <a href="/archive.html" class="btn">Arxiv</a>
     </div>
-    <div>
+    <div >
       <button id="dailyBtn" class="btn btn-primary btn_size">📊 Kunlik Hisob</button>
       <button id="archiveBtn" class="btn btn-warning btn_size"> Hsobni yanglash!</button>
       <button id="clearBtn" class="btn danger btn_size">🧹 DB Tozalash</button>

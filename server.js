@@ -63,7 +63,7 @@ const orderSchema = new mongoose.Schema({
     externalId: { type: String, default: () => shortid.generate() }, // optional unique string id
     ps: { type: String, default: "PS1" },
     type: { type: String, enum: ["cash", "vip"], default: "vip" },
-    startTime: { type: Date, default: Date.now },
+    startTime: { type: Date, default: () => getTashkentDate() },
     endTime: { type: Date, default: null },
     summa: { type: Number, default: 0 },
     status: { type: String, enum: ["process", "completed", "trash"], default: "process" },
@@ -402,9 +402,9 @@ api.get("/completed", authMiddleware, async (req, res) => {
 // daily report (bugungi zakazlar va umumiy summa)
 api.get("/daily-report", authMiddleware, async (req, res) => {
     try {
-        const start = new Date();
+        const start = getTashkentDate();
         start.setHours(0, 0, 0, 0);
-        const end = new Date();
+        const end = getTashkentDate();
         end.setHours(23, 59, 59, 999);
 
         let orders = await Order.find({
@@ -691,3 +691,8 @@ api.get("/archive", authMiddleware, superMiddleware, async (req, res) => {
         return res.status(500).json({ ok: false, error: e.message });
     }
 });
+
+function getTashkentDate() {
+    // Hozirgi vaqtni Asia/Tashkent bo‘yicha qaytaradi
+    return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tashkent" }));
+}
