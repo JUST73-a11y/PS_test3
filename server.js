@@ -202,7 +202,7 @@ api.post("/order", authMiddleware, async (req, res) => {
         const o = new Order({ ps, type, startTime: start, endTime: end, summa, status: "process" });
         await o.save();
 
-        const text = `<b>🎮 Yangi Zakaz</b>\nPS: ${o.ps}\nTuri: ${o.type.toUpperCase()}\nBoshlangan: ${formatTashkent(o.startTime)}\n${o.endTime ? `Yakun: ${formatTashkent(o.endTime)}\n` : ""}Summa: ${o.summa.toLocaleString()} so'm\nID: ${o.orderId}`;
+        const text = `<b>🎮 Yangi Zakaz</b>\nPS: ${o.ps}\nTuri: ${o.type.toUpperCase()}\n Boshlangan: ${formatTashkent(o.startTime)}\n${o.endTime ? `Yakun: ${formatTashkent(o.endTime)}\n` : ""}Summa: ${o.summa.toLocaleString()} so'm\nID: ${o.orderId}`;
         sendToTelegram(text).catch(console.error);
 
         return res.json({ ok: true, order: o });
@@ -293,7 +293,7 @@ api.post("/complete/:id", authMiddleware, async (req, res) => {
         o.completedAt = new Date();
         await o.save();
 
-        const text = `<b>✅ Zakaz yakunlandi</b>\nPS: ${o.ps}\nTuri: ${o.type.toUpperCase()}\nBoshlangan: ${o.startTime.toLocaleString()}\nYakun: ${o.endTime ? o.endTime.toLocaleString() : "-"}\nSumma: ${o.summa.toLocaleString()} so'm`;
+        const text = `<b>✅ Zakaz yakunlandi</b>\n\nPS: ${o.ps}\n<u>Turi: ${o.type.toUpperCase()}</u>\nBoshlangan: ${formatTashkent(o.startTime)}\n${o.endTime ? `Yakun: ${formatTashkent(o.endTime)}\n` : "-"}\nSumma: ${o.summa.toLocaleString()} so'm`;
         sendToTelegram(text).catch(console.error);
 
         return res.json({ ok: true, order: o });
@@ -470,12 +470,12 @@ api.post("/daily-report", authMiddleware, async (req, res) => {
 
         // Xabarlarni bo‘lib-bo‘lib yuborish
         const lines = orders.map((o, i) =>
-            `<u><b>${i + 1}) ${o.ps} | </b></u> ${o.type}${o._calculated ? " (VIP ochiq)" : ""}| ${o.summa.toLocaleString()} so'm | ${formatTashkent(o.startTime, false)} - ${formatTashkent(o.endTime, false)}`
+            `<u><b>${i + 1}) ${o.ps} | </b></u>${o.type}${o._calculated ? " (VIP ochiq)" : ""}|💵 ${o.summa.toLocaleString()} so'm \n Boshlangan: ${formatTashkent(o.startTime)} \n ${o.endTime ? `Yakun: ${formatTashkent(o.endTime)}` : "-"} \n`
         );
         if (orders.length > 0) {
             await sendToTelegramChunks(
                 lines,
-                `📊 Kunlik Hisobot\n📅${start.toLocaleDateString()}:\n`
+                `📊 Kunlik Hisobot\n📅${start.toLocaleDateString()}\n 💵 Daromad: ${totalSum.toLocaleString()} so'm \n`
             );
         } else {
             await sendToTelegram("📊 Kunlik hisobot: Hech qanday zakaz yo‘q edi.");
