@@ -5,22 +5,30 @@
     <meta charset="utf-8" />
     <title>Login — PS Club</title>
     <link rel="stylesheet" href="/shared.css" />
+    <style>
+        /* Login sahifasida nav-bar ko‘rinmasin */
+        #ps-nav {
+            display: none !important;
+        }
+    </style>
 </head>
 
 <body>
     <div class="container">
-        <div class="card" style="    margin-top: 50%;">
-            <h2 style="    font-size: 45px; margin-bottom: 20px;"> Admin Kirish</h2>
+        <div class="card" style="      
+            margin-top: 65%;
+    background: rgb(24 28 44);">
+            <h2 style="font-size: 45px; margin-bottom: 20px;"> Admin Kirish</h2>
             <label class="small">Username</label>
             <input id="username" style="width:100%; font-size: 40px; border: 1px solid #8d51c7; margin-bottom: 35px;"
                 placeholder="Username" />
             <label class="small">Password</label>
-            <input id="password" style="width:100%; font-size: 40px; border: 1px solid #8d51c7; margin-bottom: 35px;"
+            <input id="password" type="password"
+                style="width:100%; font-size: 40px; border: 1px solid #8d51c7; margin-bottom: 35px;"
                 placeholder="Password" />
             <div style="margin-top:8px">
                 <button id="loginBtn" class="btn btn-primary">Kirish</button>
             </div>
-
         </div>
     </div>
 
@@ -30,7 +38,11 @@
             const u = document.getElementById("username").value;
             const p = document.getElementById("password").value;
             try {
-                const res = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: u, password: p }) });
+                const res = await fetch("/api/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ username: u, password: p })
+                });
                 const j = await res.json();
                 if (j.ok && j.token) {
                     localStorage.setItem("ps_token", j.token);
@@ -38,7 +50,10 @@
                 } else {
                     alert("Login xato: " + (j.error || JSON.stringify(j)));
                 }
-            } catch (e) { console.error(e); alert("Serverga ulanishda xatolik"); }
+            } catch (e) {
+                console.error(e);
+                alert("Serverga ulanishda xatolik");
+            }
         });
     </script>
 </body>

@@ -202,7 +202,7 @@ api.post("/order", authMiddleware, async (req, res) => {
         const o = new Order({ ps, type, startTime: start, endTime: end, summa, status: "process" });
         await o.save();
 
-        const text = `<b>🎮 Yangi Zakaz</b>\nPS: ${o.ps}\nTuri: ${o.type.toUpperCase()}\nBoshlangan: ${o.startTime.toLocaleString()}\n${o.endTime ? `Yakun: ${o.endTime.toLocaleString()}\n` : ""}Summa: ${o.summa.toLocaleString()} so'm\nID: ${o.orderId}`;
+        const text = `<b>🎮 Yangi Zakaz</b>\nPS: ${o.ps}\nTuri: ${o.type.toUpperCase()}\nBoshlangan: ${formatTashkent(o.startTime)}\n${o.endTime ? `Yakun: ${formatTashkent(o.endTime)}\n` : ""}Summa: ${o.summa.toLocaleString()} so'm\nID: ${o.orderId}`;
         sendToTelegram(text).catch(console.error);
 
         return res.json({ ok: true, order: o });
@@ -470,7 +470,7 @@ api.post("/daily-report", authMiddleware, async (req, res) => {
 
         // Xabarlarni bo‘lib-bo‘lib yuborish
         const lines = orders.map((o, i) =>
-            `<u><b>${i + 1}) ${o.ps} | </b></u> ${o.type}${o._calculated ? " (VIP ochiq)" : ""}| ${o.summa.toLocaleString()} so'm | ${o.startTime ? new Date(o.startTime).toLocaleTimeString() : "-"} - ${o.endTime ? new Date(o.endTime).toLocaleTimeString() : "-"}`
+            `<u><b>${i + 1}) ${o.ps} | </b></u> ${o.type}${o._calculated ? " (VIP ochiq)" : ""}| ${o.summa.toLocaleString()} so'm | ${formatTashkent(o.startTime, false)} - ${formatTashkent(o.endTime, false)}`
         );
         if (orders.length > 0) {
             await sendToTelegramChunks(
@@ -559,7 +559,7 @@ api.post("/clear", authMiddleware, superMiddleware, async (req, res) => {
         const orders = await Order.find();
         const totalSum = orders.reduce((sum, o) => sum + (o.summa || 0), 0);
         const orderLines = orders.map((o, i) =>
-            `${i + 1}) PS: ${o.ps} | ${o.type.toUpperCase()} | ${o.summa?.toLocaleString()} so'm | ${o.startTime ? new Date(o.startTime).toLocaleString() : "-"}`
+            `${i + 1}) PS: ${o.ps} | ${o.type.toUpperCase()} | ${o.summa?.toLocaleString()} so'm | ${formatTashkent(o.startTime)}`
         );
         if (orders.length > 0) {
             await sendToTelegramChunks(orderLines, `🧹 DB Tozalash Backup\nJami: ${orders.length} ta zakaz, ${totalSum.toLocaleString()} so'm\n`);
@@ -695,4 +695,12 @@ api.get("/archive", authMiddleware, superMiddleware, async (req, res) => {
 function getTashkentDate() {
     // Hozirgi vaqtni Asia/Tashkent bo‘yicha qaytaradi
     return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tashkent" }));
+}
+
+function formatTashkent(dt, withTime = true) {
+    if (!dt) return "-";
+    const d = new Date(dt);
+    return withTime
+        ? d.toLocaleString("uz-UZ", { timeZone: "Asia/Tashkent" })
+        : d.toLocaleDateString("uz-UZ", { timeZone: "Asia/Tashkent" });
 }

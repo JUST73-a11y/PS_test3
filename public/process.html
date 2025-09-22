@@ -106,7 +106,7 @@
                         div.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center">
   <div>
     <strong style=" font-size: 35px;">${o.ps}</strong>
-    <div class="small" style=" font-size: 25px;">ID:${o.orderId ?? o.externalId}</div>
+  <div class="small" style=" font-size: 25px;">Turi: ${o.type.toUpperCase()}</div>
     <div class="small" ><spam style="color:#4cd500">Ochilgan:</spam> ${new Date(o.createdAt).toLocaleString()}</div>
     ${endTimeHtml}
   </div>

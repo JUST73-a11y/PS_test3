@@ -584,7 +584,8 @@ input:active {
 
     .dashboard-form>div,
     .card {
-        padding: 10px 4px 8px 4px !important;
+        padding: 55% 0% 50% !important;
+        margin-top: -376px !important;
         border-radius: 12px !important;
     }
 
@@ -651,6 +652,10 @@ input:active {
     .card,
     .dashboard-form>div {
         font-size: 1.08em !important;
+    }
+
+    .btn_size {
+        width: 50% !important;
     }
 
     .small,

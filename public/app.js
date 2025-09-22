@@ -55,7 +55,7 @@ function buildNav() {
       <a href="/archive.html" class="btn">Arxiv</a>
     </div>
     <div >
-      <button id="dailyBtn" class="btn btn-primary btn_size">📊 Kunlik Hisob</button>
+      <button id="dailyBtn" class="btn btn-primary btn_size ">📊 Kunlik Hisob</button>
       <button id="archiveBtn" class="btn btn-warning btn_size"> Hsobni yanglash!</button>
       <button id="clearBtn" class="btn danger btn_size">🧹 DB Tozalash</button>
       <button id="logoutBtn" class="btn btn_size" style="    margin-top: 7px;">Logout</button>
