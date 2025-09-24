@@ -202,7 +202,7 @@ api.post("/order", authMiddleware, async (req, res) => {
         const o = new Order({ ps, type, startTime: start, endTime: end, summa, status: "process" });
         await o.save();
 
-        const text = `<b>🎮 Yangi Zakaz</b>\nPS: ${o.ps}\nTuri: ${o.type.toUpperCase()}\n Boshlangan: ${formatTashkent(o.startTime)}\n${o.endTime ? `Yakun: ${formatTashkent(o.endTime)}\n` : ""}Summa: ${o.summa.toLocaleString()} so'm\nID: ${o.orderId}`;
+        const text = `<b>🎮 Yangi Zakaz</b>\nPS: ${o.ps}\nTuri: <u>${o.type.toUpperCase()}</u>\nSumma: <b>${o.summa.toLocaleString()} </b>so'm\n Boshlangan: ${formatTashkent(o.startTime)}\n${o.endTime ? `Yakun: ${formatTashkent(o.endTime)}\n` : ""}\n`;
         sendToTelegram(text).catch(console.error);
 
         return res.json({ ok: true, order: o });
@@ -274,29 +274,48 @@ api.post("/complete/:id", authMiddleware, async (req, res) => {
         const o = await findOrderByAnyId(id);
         if (!o) return res.status(404).json({ ok: false, error: "Not found" });
 
+        let qaytish = 0;
+        let oynaganSumma = 0;
+        let oynaganMinut = 0;
+        let qolganMinut = 0;
+
         if (o.type === "vip") {
             const start = new Date(o.startTime);
             const end = new Date();
-            const diffHours = (end - start) / (3600 * 1000);
-            // Yangi: 1000 ga yaxlitlash
-            let summa = Math.ceil(diffHours * PRICE_PER_HOUR);
-            summa = Math.ceil(summa / 1000) * 1000;
-            o.summa = summa;
+            const diffMs = end - start;
+            oynaganMinut = Math.floor(diffMs / 60000);
+            const diffHours = diffMs / (3600 * 1000);
+            oynaganSumma = Math.ceil(diffHours * PRICE_PER_HOUR);
+            oynaganSumma = Math.ceil(oynaganSumma / 1000) * 1000;
+            o.summa = oynaganSumma;
             o.endTime = end;
-        } else {
-            if (!o.endTime) {
-                const hours = o.summa / PRICE_PER_HOUR;
-                o.endTime = new Date(new Date(o.startTime).getTime() + Math.floor(hours * 3600 * 1000));
+        } else if (o.type === "cash") {
+            const now = new Date();
+            const start = new Date(o.startTime);
+            const end = o.endTime ? new Date(o.endTime) : null;
+            const oynaganMs = now - start;
+            oynaganMinut = Math.floor(oynaganMs / 60000);
+            oynaganSumma = Math.ceil(oynaganMs / (3600 * 1000) * PRICE_PER_HOUR);
+            oynaganSumma = Math.ceil(oynaganSumma / 1000) * 1000;
+            if (end && now < end) {
+                qolganMinut = Math.floor((end - now) / 60000);
+                qaytish = o.summa - oynaganSumma;
+                o.summa = oynaganSumma;
+                o.endTime = now;
             }
         }
         o.status = "completed";
         o.completedAt = new Date();
         await o.save();
 
-        const text = `<b>✅ Zakaz yakunlandi</b>\n\nPS: ${o.ps}\n<u>Turi: ${o.type.toUpperCase()}</u>\nBoshlangan: ${formatTashkent(o.startTime)}\n${o.endTime ? `Yakun: ${formatTashkent(o.endTime)}\n` : "-"}\nSumma: ${o.summa.toLocaleString()} so'm`;
+        // Telegram xabari
+        let text = `<b>✅ Zakaz yakunlandi</b>\n\nPS: ${o.ps}\n<u>Turi: ${o.type.toUpperCase()}</u>\nSumma: ${o.summa.toLocaleString()} so'm \nBoshlangan: ${formatTashkent(o.startTime)}\n${o.endTime ? `Yakun: ${formatTashkent(o.endTime)}\n` : "-"}\nO‘ynalgan vaqt: ${oynaganMinut} minut\nO‘ynalgan summa: ${oynaganSumma.toLocaleString()} so'm\n`;
+        if (qaytish > 0) {
+            text += `\nQolgan vaqt: ${qolganMinut} minut\nQaytishi kerak: ${qaytish.toLocaleString()} so'm`;
+        }
         sendToTelegram(text).catch(console.error);
 
-        return res.json({ ok: true, order: o });
+        return res.json({ ok: true, order: o, qaytish, oynaganSumma, oynaganMinut, qolganMinut });
     } catch (e) {
         console.error(e);
         return res.status(500).json({ ok: false, error: e.message });
@@ -544,7 +563,7 @@ setInterval(async () => {
             o.status = "completed";
             o.completedAt = now;
             await o.save();
-            sendToTelegram(`<b>✅ Zakaz avtomatik yakunlandi</b>\nPS: ${o.ps}\nSumma: ${o.summa} so'm\nID: ${o.orderId}`).catch(console.error);
+            sendToTelegram(`<b>✅ Zakaz avtomatik yakunlandi</b>\nPS: ${o.ps}\n<u>Turi: ${o.type.toUpperCase()}</u> \nSumma: <b>${o.summa} </b> so'm\nBoshlangan: ${formatTashkent(o.startTime)}\n${o.endTime ? `Yakun: ${formatTashkent(o.endTime)}\n` : "-"}`).catch(console.error);
         }
         if (expired.length) console.log(`Auto-completed ${expired.length} orders`);
     } catch (e) {
@@ -693,9 +712,12 @@ api.get("/archive", authMiddleware, superMiddleware, async (req, res) => {
 });
 
 function getTashkentDate() {
-    // Hozirgi vaqtni Asia/Tashkent bo‘yicha qaytaradi
     return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Tashkent" }));
 }
+
+// Misol:
+const vaqt = getTashkentDate();
+console.log("Toshkent vaqti:", vaqt);
 
 function formatTashkent(dt, withTime = true) {
     if (!dt) return "-";

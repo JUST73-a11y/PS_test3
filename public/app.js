@@ -42,6 +42,7 @@ function buildNav() {
     const nav = document.createElement("nav");
     nav.id = "ps-nav";
     nav.innerHTML = `
+    
       <span class="psclub-logo" style="    margin: 0 auto;
     width: 80%;
     display: flex;
@@ -134,7 +135,7 @@ function showModal({ title = "", html = "", ok = "OK", cancel = null, input = fa
                 <div class="ps-modal-bg"></div>
                 <div class="ps-modal-card">
                     <div class="ps-modal-title" style="font-size: 3em; font-weight: bold;"></div>
-                    <div class="ps-modal-body " style="font-size: 3em;"></div>
+                    <div class="ps-modal-body " style="font-size: 2em;"></div>
                     <div class="ps-modal-actions"></div>
                 </div>
             `;
@@ -179,33 +180,85 @@ window.completeOrder = async (id) => {
     if (!confirm) return;
     const j = await fetch("/api/complete/" + id, { method: "POST", headers: authHeaders() }).then(r => r.json());
     if (j.ok) {
-        await modalAlert(`Zakaz yopildi!<br><b>Summa:</b> ${j.order.summa} so'm`, "Zakaz yakunlandi");
+        let msg = `<b>Zakaz yakunlandi</b><br>`;
+        msg += `<b>O‘ynalgan vaqt:</b> ${j.oynaganMinut ?? 0} minut<br>`;
+        msg += `<b>O‘ynalgan summa:</b> ${j.oynaganSumma?.toLocaleString() ?? j.order.summa?.toLocaleString()} so'm<br>`;
+        msg += `<b>Summa:</b> ${j.order.summa?.toLocaleString()} so'm<br>`;
+        if (j.qaytish && j.qaytish > 0) {
+            msg += `<b>Qolgan vaqt:</b> ${j.qolganMinut ?? 0} minut<br>`;
+            msg += `<b>Qaytishi kerak:</b> ${j.qaytish.toLocaleString()} so'm`;
+        }
+        await modalAlert(msg, "Zakaz yakunlandi");
         loadProcess();
     } else {
         await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
     }
 };
 
+
+const archiveBtn = document.getElementById("archiveBtn");
+if (archiveBtn) {
+    archiveBtn.onclick = async () => {
+        if (!(await modalConfirm("Kunlik hisobni arxivga o‘tkazishni tasdiqlaysizmi? Oldingi kun zakazlari arxivga o‘tadi.", "Kunlik hisobni arxivlash"))) return;
+        const superKey = await modalPrompt("Super admin keyni kiriting:", "Super admin");
+        if (!superKey) {
+            await modalAlert("Key kerak", "Super admin");
+            return;
+        }
+        const res = await fetch("/api/archive-day", { method: "POST", headers: authHeaders({ "super-key": superKey }) });
+        const j = await res.json();
+        if (j.ok) {
+            await modalAlert("Kunlik hisob arxivga o‘tkazildi!");
+            if (typeof loadStats === "function") loadStats();
+        } else {
+            await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
+        }
+    };
+}
+
+const editTypeSelect = document.getElementById("editTypeSelect");
+const editSumInput = document.getElementById("editSumInput");
+if (editTypeSelect && editSumInput) {
+    editTypeSelect.onchange = () => {
+        if (editTypeSelect.value === "vip") {
+            editSumInput.value = "";
+            editSumInput.readOnly = true;
+            editSumInput.style.background = "#eee";
+        } else {
+            editSumInput.readOnly = false;
+            editSumInput.style.background = "";
+        }
+    };
+}
+
+const addTypeSelect = document.getElementById("addType");
+const addSumInput = document.getElementById("addSum");
+
+if (addTypeSelect && addSumInput) {
+    addTypeSelect.onchange = () => {
+        if (addTypeSelect.value === "vip") {
+            addSumInput.value = "";
+            addSumInput.readOnly = true;
+            addSumInput.style.background = "#eee";
+        } else {
+            addSumInput.readOnly = false;
+            addSumInput.style.background = "";
+        }
+    };
+}
+
+function getTashkentTimeString() {
+    return new Date().toLocaleString("uz-UZ", { timeZone: "Asia/Tashkent" });
+}
+
+// Misol:
+const vaqt = getTashkentTimeString();
+console.log("Toshkent vaqti:", vaqt);
+
 document.addEventListener("DOMContentLoaded", () => {
     buildNav();
-
-    const archiveBtn = document.getElementById("archiveBtn");
-    if (archiveBtn) {
-        archiveBtn.onclick = async () => {
-            if (!(await modalConfirm("Kunlik hisobni arxivga o‘tkazishni tasdiqlaysizmi? Oldingi kun zakazlari arxivga o‘tadi.", "Kunlik hisobni arxivlash"))) return;
-            const superKey = await modalPrompt("Super admin keyni kiriting:", "Super admin");
-            if (!superKey) {
-                await modalAlert("Key kerak", "Super admin");
-                return;
-            }
-            const res = await fetch("/api/archive-day", { method: "POST", headers: authHeaders({ "super-key": superKey }) });
-            const j = await res.json();
-            if (j.ok) {
-                await modalAlert("Kunlik hisob arxivga o‘tkazildi!");
-                if (typeof loadStats === "function") loadStats();
-            } else {
-                await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
-            }
-        };
+    if (typeof loadStats === "function") {
+        loadStats();
+        setInterval(loadStats, 20000); // 20 sekundda bir so‘rov
     }
 });

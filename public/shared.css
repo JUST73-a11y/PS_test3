@@ -267,9 +267,9 @@ select {
 input:focus,
 select:focus,
 button:focus {
-    outline: 2px solid var(--accent2);
-    border-color: var(--accent2);
-    background: rgba(0, 176, 255, 0.08);
+    outline: 2px solid var(--accent2) !important;
+    border-color: var(--accent2) !important;
+    background: rgba(0, 176, 255, 0.08) !important;
 }
 
 input:focus,
@@ -403,7 +403,7 @@ input:active {
 
 #stats {
     font-size: 2.08em;
-    color: rgb(34, 151, 209);
+    color: rgb(145 211 245);
     margin-top: 8px;
 }
 
@@ -746,7 +746,7 @@ select:focus {
     background: rgba(24, 28, 44, 0.95) !important;
     color: var(--text) !important;
     font-size: 50px !important;
-    border: 1px solid;
+    border: 1px solid !important;
 }
 
 option {

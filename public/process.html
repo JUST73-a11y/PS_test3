@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <title>Process — PS Club</title>
+    <link rel="icon" href="./logo.png" />
     <link rel="stylesheet" href="/shared.css" />
 </head>
 
@@ -28,11 +29,27 @@
                 <label>Summa (so'm):</label>
                 <input id="editSum" type="number" style="width:100%" />
             </div>
+            <div style="margin-top:8px">
+                <label>Zakaz turi:</label>
+                <select id="editType" style="width:100%">
+                    <option value="cash">CASH</option>
+                    <option value="vip">VIP</option>
+                </select>
+            </div>
             <div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end">
                 <button id="editCancel" class="btn">Bekor qilish</button>
                 <button id="editSave" class="btn success">Saqlash</button>
             </div>
         </div>
+    </div>
+
+    <div id="loading" style="display:none;text-align:center;margin:20px;">
+        <!-- Spinner icon SVG -->
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <circle cx="24" cy="24" r="20" stroke="#8d51c7" stroke-width="6" opacity="0.2" />
+            <path d="M44 24a20 20 0 1 1-20-20" stroke="#8d51c7" stroke-width="6" stroke-linecap="round" />
+        </svg>
+        <div>Yuklanmoqda...</div>
     </div>
 
     <script src="/app.js"></script>
@@ -50,6 +67,9 @@
                 opt.textContent = ps;
                 editPsSelect.appendChild(opt);
             });
+
+            const editSumInput = document.getElementById("editSum");
+            const editTypeSelect = document.getElementById("editType");
 
             let editingId = null;
 
@@ -115,7 +135,7 @@
 <div class="small">Summa: ${Number(o.summa).toLocaleString()} so'm | Turi: ${o.type.toUpperCase()}</div>
 <div style="margin-top:8px">
   <button onclick="completeOrder('${o._id}')" class="btn success large" style=" font-size: 25px;">✅ Yakunla</button>
-  <button onclick="promptEdit('${o._id}', '${o.ps}', ${o.summa})" class="btn" style=" font-size: 25px; border: 1px solid #9b5cff;" >✏️ Edit</button>
+  <button onclick="promptEdit('${o._id}', '${o.ps}', ${o.summa}, '${o.type}')" class="btn" style=" font-size: 25px; border: 1px solid #9b5cff;" >✏️ Edit</button>
   <button onclick="deleteOrder('${o._id}')" class="btn danger" style=" font-size: 25px;" >🗑 Delete</button>
 </div>`;
                         wrap.appendChild(div);
@@ -128,7 +148,24 @@
                 if (!confirm) return;
                 const j = await fetch("/api/complete/" + id, { method: "POST", headers: authHeaders() }).then(r => r.json());
                 if (j.ok) {
-                    await modalAlert(`Zakaz yopildi!<br><b>Summa:</b> ${j.order.summa} so'm`, "Zakaz yakunlandi");
+                    // Muddatidan oldin tugaganmi?
+                    const early = j.qaytish && j.qaytish > 0;
+                    let msg = `<div style="font-size:2em;font-weight:bold;color:#4cd500"> </div>`;
+                    msg += `<div style="font-size:1.3em;margin-top:8px;"><b>PS:</b> ${j.order.ps}</div>`;
+                    msg += `<div style="font-size:1.3em;"><b>Summa:</b> ${j.order.summa?.toLocaleString()} so'm</div>`;
+
+                    if (!early) {
+                        // To‘liq o‘ynalgan zakaz uchun
+                        msg += `<div style="margin-top:12px;font-size:1.1em;color #a137ff ;"><b>Tugagan vaqt:</b> ${j.order.endTime ? new Date(j.order.endTime).toLocaleString("uz-UZ", { timeZone: "Asia/Tashkent" }) : "-"}</div>`;
+                    } else {
+                        // Muddatidan oldin tugagan zakaz uchun
+                        msg += `<div style="margin-top:8px;font-size:1.1em;color:#009ae7;"><b>O‘ynalgan vaqt:</b> ${j.oynaganMinut ?? 0} minut</div>`;
+                        msg += `<div style="font-size:1.1em;color:#009ae7;"><b>O‘ynalgan summa:</b> ${j.oynaganSumma?.toLocaleString() ?? j.order.summa?.toLocaleString()} so'm</div>`;
+                        msg += `<div style="margin-top:8px;font-size:1.1em;color:#ff5c5c;"><b>Qolgan vaqt:</b> ${j.qolganMinut ?? 0} minut</div>`;
+                        msg += `<div style="font-size:1.1em;color:#ff5c5c;"><b>Qaytishi kerak:</b> ${j.qaytish.toLocaleString()} so'm</div>`;
+                    }
+
+                    await modalAlert(msg, "Zakaz yakunlandi");
                     loadProcess();
                 } else {
                     await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
@@ -136,10 +173,23 @@
             };
 
             // Modal edit
-            window.promptEdit = (id, ps, sum) => {
+            editTypeSelect.onchange = () => {
+                if (editTypeSelect.value === "vip") {
+                    editSumInput.value = "";
+                    editSumInput.readOnly = true;
+                    editSumInput.style.background = "#eee";
+                } else {
+                    editSumInput.readOnly = false;
+                    editSumInput.style.background = "";
+                }
+            };
+
+            window.promptEdit = (id, ps, sum, type = "cash") => {
                 editingId = id;
                 editPsSelect.value = ps;
-                document.getElementById("editSum").value = sum;
+                editTypeSelect.value = type;
+                editSumInput.value = sum;
+                editTypeSelect.onchange(); // inputni bloklash uchun
                 document.getElementById("editModal").style.display = "flex";
             };
 
@@ -150,13 +200,14 @@
 
             document.getElementById("editSave").onclick = async () => {
                 const newPs = editPsSelect.value;
-                const newSum = Number(document.getElementById("editSum").value);
+                const newSum = Number(editSumInput.value);
+                const newType = editTypeSelect.value;
                 if (!newPs) return modalAlert("PS nomeri bo‘sh bo‘lishi mumkin emas");
-                if (isNaN(newSum) || newSum < 0) return modalAlert("Summa noto‘g‘ri");
+                if (newType === "cash" && (isNaN(newSum) || newSum < 0)) return modalAlert("Summa noto‘g‘ri");
                 const j = await fetch("/api/order/" + editingId, {
                     method: "PUT",
                     headers: authHeaders(),
-                    body: JSON.stringify({ ps: newPs, amount: newSum })
+                    body: JSON.stringify({ ps: newPs, amount: newSum, type: newType })
                 }).then(r => r.json());
                 if (j.ok) {
                     document.getElementById("editModal").style.display = "none";

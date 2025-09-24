@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <title>Login — PS Club</title>
+    <link rel="icon" href="./logo.png" />
     <link rel="stylesheet" href="/shared.css" />
     <style>
         /* Login sahifasida nav-bar ko‘rinmasin */
@@ -31,12 +32,21 @@
             </div>
         </div>
     </div>
+    <div id="loading" style="display:none;text-align:center;margin:20px;">
+        <!-- Spinner icon SVG -->
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <circle cx="24" cy="24" r="20" stroke="#8d51c7" stroke-width="6" opacity="0.2" />
+            <path d="M44 24a20 20 0 1 1-20-20" stroke="#8d51c7" stroke-width="6" stroke-linecap="round" />
+        </svg>
+        <div>Yuklanmoqda...</div>
+    </div>
 
     <script src="/app.js"></script>
     <script>
         document.getElementById("loginBtn").addEventListener("click", async () => {
             const u = document.getElementById("username").value;
             const p = document.getElementById("password").value;
+            document.getElementById("loading").style.display = "block";
             try {
                 const res = await fetch("/api/login", {
                     method: "POST",
@@ -44,6 +54,7 @@
                     body: JSON.stringify({ username: u, password: p })
                 });
                 const j = await res.json();
+                document.getElementById("loading").style.display = "none";
                 if (j.ok && j.token) {
                     localStorage.setItem("ps_token", j.token);
                     window.location.href = "/dashboard.html";
@@ -51,6 +62,7 @@
                     alert("Login xato: " + (j.error || JSON.stringify(j)));
                 }
             } catch (e) {
+                document.getElementById("loading").style.display = "none";
                 console.error(e);
                 alert("Serverga ulanishda xatolik");
             }

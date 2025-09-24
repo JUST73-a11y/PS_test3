@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <title>Completed — PS Club</title>
+    <link rel="icon" href="./logo.png" />
     <link rel="stylesheet" href="/shared.css" />
 </head>
 
@@ -16,6 +17,14 @@
             <input id="search" placeholder="PS yoki ID bo'yicha qidirish"
                 style="width:100%;padding:8px;border-radius:6px" />
             <ul id="completedList" class="list"></ul>
+        </div>
+        <div id="loading" style="display:none;text-align:center;margin:20px;">
+            <!-- Spinner icon SVG -->
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <circle cx="24" cy="24" r="20" stroke="#8d51c7" stroke-width="6" opacity="0.2" />
+                <path d="M44 24a20 20 0 1 1-20-20" stroke="#8d51c7" stroke-width="6" stroke-linecap="round" />
+            </svg>
+            <div>Yuklanmoqda...</div>
         </div>
     </div>
 

@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <title>Dashboard — PS Club</title>
+    <link rel="icon" href="./logo.png" />
     <link rel="stylesheet" href="/shared.css" />
 </head>
 
@@ -43,6 +44,15 @@
             <h3 style="font-size: 2em;">Oxirgi zakazlar</h3>
             <ul id="recentList" class="list"></ul>
         </div>
+
+        <div id="loading" style="display:none;text-align:center;margin:20px;">
+            <!-- Spinner icon SVG -->
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                <circle cx="24" cy="24" r="20" stroke="#8d51c7" stroke-width="6" opacity="0.2" />
+                <path d="M44 24a20 20 0 1 1-20-20" stroke="#8d51c7" stroke-width="6" stroke-linecap="round" />
+            </svg>
+            <div>Yuklanmoqda...</div>
+        </div>
     </div>
 
     <script src="/app.js"></script>
@@ -50,6 +60,20 @@
         document.addEventListener("DOMContentLoaded", () => {
             if (!requireAuth()) return;
             buildNav();
+
+            // VIP tanlansa, summa input bloklanadi
+            const typeSelect = document.getElementById("typeSelect");
+            const amountInput = document.getElementById("amount");
+            typeSelect.onchange = () => {
+                if (typeSelect.value === "vip") {
+                    amountInput.value = "";
+                    amountInput.readOnly = true;
+                    amountInput.style.background = "#eee";
+                } else {
+                    amountInput.readOnly = false;
+                    amountInput.style.background = "";
+                }
+            };
 
             async function loadStats() {
                 try {
@@ -59,12 +83,16 @@
                     const total = filtered.reduce((s, o) => s + Number(o.summa || 0), 0);
                     const processCount = filtered.filter(o => o.status === "process").length;
                     const completedCount = filtered.filter(o => o.status === "completed").length;
-                    document.getElementById("stats").innerText = `Jami: ${filtered.length} | Process: ${processCount} | Completed: ${completedCount} | Summa: ${total.toLocaleString()} so'm`;
-                    const recent = filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+                    document.getElementById("stats").innerText = `Jami zakaz: ${filtered.length}
+                     Faol : ${processCount}
+                     Yakunlangan : ${completedCount} 
+                     Jami summa: ${total.toLocaleString()} so'm`;
+                    const recent = filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 6);
                     const el = document.getElementById("recentList"); el.innerHTML = "";
                     recent.forEach(o => {
+                        const statusUz = o.status === "process" ? "Faol" : o.status === "completed" ? "Yakunlangan" : "Trash";
                         const li = document.createElement("li");
-                        li.innerHTML = `${o.ps} | ${o.type} | ${Number(o.summa).toLocaleString()} so'm | ${new Date(o.createdAt).toLocaleString()} | <span style="color: ${o.status === "completed" ? "#43d97a" : "#ff5c5c"};">${o.status.toUpperCase()}</span>`;
+                        li.innerHTML = `${o.ps} | ${o.type} | ${Number(o.summa).toLocaleString()} so'm | ${new Date(o.createdAt).toLocaleString()} | <span style="color: ${o.status === "completed" ? "#43d97a" : "#ff5c5c"};">${statusUz}</span>`;
                         el.appendChild(li);
                     });
                 } catch (e) {
