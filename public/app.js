@@ -80,7 +80,7 @@ function buildNav() {
         try {
             const j = await fetchJson("/api/daily-report", { method: "POST", headers: authHeaders() });
             if (j.ok) await modalAlert("Kunlik hisobot Telegramga yuborildi", "Kunlik Hisob");
-            else await modalAlert("Xato: " + (j.error || JSON.stringify(j)), "Kunlik Hisob");
+            else await modalAlert("Xato: " + (j.error || JSON.stringify(j)), "Xato");
         } catch (e) { console.error(e); }
     };
 
@@ -102,7 +102,7 @@ function buildNav() {
             );
             location.reload();
         } else {
-            await modalAlert("Xato: " + (j.error || JSON.stringify(j)), "DB tozalash");
+            await modalAlert("Xato: " + (j.error || JSON.stringify(j)), "Xato");
         }
     };
 
@@ -119,7 +119,7 @@ function buildNav() {
             await modalAlert("Kunlik hisob arxivga o‘tkazildi!");
             if (typeof loadStats === "function") loadStats();
         } else {
-            await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
+            await modalAlert("Xato: " + (j.error || JSON.stringify(j)), "Xato");
         }
     };
 }
@@ -191,7 +191,7 @@ window.completeOrder = async (id) => {
         await modalAlert(msg, "Zakaz yakunlandi");
         loadProcess();
     } else {
-        await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
+        await modalAlert("Xato: " + (j.error || JSON.stringify(j)), "Xato");
     }
 };
 
@@ -211,7 +211,7 @@ if (archiveBtn) {
             await modalAlert("Kunlik hisob arxivga o‘tkazildi!");
             if (typeof loadStats === "function") loadStats();
         } else {
-            await modalAlert("Xato: " + (j.error || JSON.stringify(j)));
+            await modalAlert("Xato: " + (j.error || JSON.stringify(j)), "Xato");
         }
     };
 }

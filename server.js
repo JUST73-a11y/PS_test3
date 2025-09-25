@@ -185,6 +185,12 @@ api.post("/order", authMiddleware, async (req, res) => {
     try {
         const { ps = "PS1", type = "vip", amount = 0, startTime } = req.body || {};
 
+        // Yangi: PS bandligini tekshirish
+        const busy = await Order.findOne({ ps, status: "process" });
+        if (busy) {
+            return res.status(400).json({ ok: false, error: "Bu PlayStation hozir band!" });
+        }
+
         if (type === "cash" && (!amount || Number(amount) <= 0)) {
             return res.status(400).json({ ok: false, error: "Cash zakaz uchun summa majburiy!" });
         }
